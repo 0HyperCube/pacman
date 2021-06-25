@@ -161,7 +161,7 @@ def run():
     player_dir = (1, 0)
     player_target_dir = (1,0)
     player_stuck = False
-    player_speed = 60
+    player_speed = 200
     player_updated = time.time()
 
     while True:
@@ -188,6 +188,8 @@ def run():
         (player_tile_update, player_pos, player_updated) = is_new_tile(
             player_pos, player_dir, player_updated, player_speed, player_stuck
         )
+
+        (player_dir, player_pos, player_updated) = handle_opposite_direction(player_target_dir, player_dir, player_pos, player_updated, player_speed)
 
         # Handle player on new tile
         if player_tile_update:
