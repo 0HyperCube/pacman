@@ -1,4 +1,3 @@
-import py
 import pygame
 from pygame.locals import *
 import time
@@ -7,21 +6,21 @@ import math
 from dataclasses import dataclass
 from typing import Tuple, List
 
+
 @dataclass
 class Vec2:
     x: int = 0
-    y:int = 0
+    y: int = 0
 
-d = Vec2(5,5)
-print(d)
 
 @dataclass
 class Sprite:
     position: Vec2 = Vec2(1, 1)
-    direction: Vec2  = Vec2(1, 0)
+    direction: Vec2 = Vec2(1, 0)
     stopped: bool = False
-    speed:float = 200
-    updated:float = time.time()
+    speed: float = 200
+    updated: float = time.time()
+
 
 # Initiate pygame
 pygame.init()
@@ -46,14 +45,6 @@ def new_ghost_direction(board, pos, direction, target_pos):
     # Returns new direction
     # Cannot go in opposite of current direction
     # Chooses path with least distance (x^2 + y^2) to target
-    pass
-
-
-def new_player_direction(board, pos, direction, target_direction):
-    # Returns new direction
-    # If target_direction possible, returns target direction
-    # Otherwise returns direction if still possible
-    # Finally returns False
     pass
 
 
@@ -108,20 +99,25 @@ def render_board(board: List[List[int]], displaysurface: pygame.Surface):
 
 def render_sprite(displaysurface: pygame.Surface, img: pygame.Surface, sprite: Sprite):
     angles = {(1, 0): 0, (0, 1): -90, (0, -1): 90, (-1, 0): 180}
-    rotated_sprite = pygame.transform.rotate(img, angles[(sprite.direction.x, sprite.direction.y)])
+    rotated_sprite = pygame.transform.rotate(
+        img, angles[(sprite.direction.x, sprite.direction.y)]
+    )
     displaysurface.blit(rotated_sprite, get_board_pos(sprite))
 
 
 # Converts a Tile position to a board position
 # Returns the board pos
-def get_board_pos(sprite: Sprite) -> Tuple[int,int]:
+def get_board_pos(sprite: Sprite) -> Tuple[int, int]:
     board_pos = Vec2(
         sprite.position.x * TILE_SIZE + TILES_OFFSET.x,
         sprite.position.y * TILE_SIZE + TILES_OFFSET.y,
     )
     if not sprite.stopped:
         delta = (time.time() - sprite.updated) * sprite.speed
-        board_pos = Vec2(board_pos.x + sprite.direction.x * delta, board_pos.y + sprite.direction.y * delta)
+        board_pos = Vec2(
+            board_pos.x + sprite.direction.x * delta,
+            board_pos.y + sprite.direction.y * delta,
+        )
     return (board_pos.x, board_pos.y)
 
 
@@ -139,38 +135,45 @@ def is_new_tile(sprite: Sprite) -> bool:
         sprite.updated += complete_tiles / tiles_per_sec
         return True
     return False
-def inverse_dir(dir:Vec2):
+
+
+def inverse_dir(dir: Vec2):
     return Vec2(-dir.x, -dir.y)
-def add_dir(pos:Vec2,dir:Vec2):
-    print(f"pos {pos} dir {dir}")
-    return Vec2(pos.x+dir.x, pos.y+dir.y)
+
+
+def add_dir(pos: Vec2, dir: Vec2):
+    return Vec2(pos.x + dir.x, pos.y + dir.y)
+
+
 def board_at(board: List[List[int]], pos: Vec2):
-    print(pos)
     return board[pos.y][pos.x]
+
 
 # Handle input from the arrow keys
 # Returns new target direction or `None`
 def handle_direction_input(event):
     if event.key == K_UP:
-        return Vec2(0,-1)
+        return Vec2(0, -1)
     elif event.key == K_DOWN:
-        return Vec2(0,1)
+        return Vec2(0, 1)
     elif event.key == K_LEFT:
-        return Vec2(-1,0)
+        return Vec2(-1, 0)
     elif event.key == K_RIGHT:
-        return Vec2(1,0)
+        return Vec2(1, 0)
+
 
 # Handle inverting direction.
-def handle_opposite_direction(board, player_target_dir, player:Sprite):
+def handle_opposite_direction(board, player_target_dir, player: Sprite):
     if player_target_dir == inverse_dir(player.direction):
         player.position = add_dir(player.position, player.direction)
         if board_at(board, player.position) == 2:
-                board[player.position.y][player.position.x] = 0
+            board[player.position.y][player.position.x] = 0
         player.direction = player_target_dir
         delta = time.time() - player.updated
         tiles_per_sec = player.speed / TILE_SIZE
         player.updated += delta
-        player.updated-=1/tiles_per_sec - delta
+        player.updated -= 1 / tiles_per_sec - delta
+
 
 # Runs the game
 def run():
@@ -179,7 +182,7 @@ def run():
     pygame.display.set_caption("Pacman")
 
     player: Sprite = Sprite()
-    player_target_dir = Vec2(1,0)
+    player_target_dir = Vec2(1, 0)
     frame = 0
 
     while True:
@@ -189,12 +192,14 @@ def run():
                 pygame.quit()
                 return
             elif event.type == KEYDOWN:
-                if event.key == K_ESCAPE:   # Escape key to exit
+                if event.key == K_ESCAPE:  # Escape key to exit
                     pygame.quit()
                     return
                 else:
                     # Handle arrow keys
-                    player_target_dir = handle_direction_input(event) or player_target_dir
+                    player_target_dir = (
+                        handle_direction_input(event) or player_target_dir
+                    )
 
         # Clear screen
         displaysurface.fill((0, 0, 0))
@@ -203,7 +208,7 @@ def run():
         render_board(board, displaysurface)
 
         # Find if player is on a new tile
-        player_tile_update = is_new_tile( player)
+        player_tile_update = is_new_tile(player)
 
         handle_opposite_direction(board, player_target_dir, player)
 
@@ -211,23 +216,22 @@ def run():
         if player_tile_update:
             if board_at(board, player.position) == 2:
                 board[player.position.y][player.position.x] = 0
-            if board_at(board, add_dir(player.position, player_target_dir)) !=1:
+            if board_at(board, add_dir(player.position, player_target_dir)) != 1:
                 player.direction = player_target_dir
                 player.stopped = False
-            elif board_at(board, add_dir(player.position, player.direction)) !=1:
+            elif board_at(board, add_dir(player.position, player.direction)) != 1:
                 player.stopped = False
             else:
                 player.stopped = True
-        if (frame//9)%2 ==0:
+        if (frame // 9) % 2 == 0:
             s = pacman1_img
         else:
             s = pacman2_img
         render_sprite(displaysurface, s, player)
 
-
         pygame.display.update()
         FramePerSec.tick(60)
-        frame+=1
+        frame += 1
 
 
 run()
