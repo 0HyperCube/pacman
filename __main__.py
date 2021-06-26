@@ -140,16 +140,18 @@ def handle_direction_input(event):
         return (1,0)
 
 # Handle inverting direction.
-# Returns `player_dir`,  `player pos` and `player_updated`
-def handle_opposite_direction(player_target_dir, player_dir, player_pos, player_updated, player_speed):
+# Returns `board`, `player_dir`, `player pos` and `player_updated`
+def handle_opposite_direction(board, player_target_dir, player_dir, player_pos, player_updated, player_speed):
     if player_target_dir == inverse_dir(player_dir):
         player_pos = add_dir(player_pos, player_dir)
+        if board_at(board, player_pos) == 2:
+                board[player_pos[1]][player_pos[0]] = 0
         player_dir = player_target_dir
         delta = time.time() - player_updated
         tiles_per_sec = player_speed / TILE_SIZE
         player_updated += delta
         player_updated-=1/tiles_per_sec - delta
-    return (player_dir, player_pos, player_updated)
+    return (board, player_dir, player_pos, player_updated)
 
 # Runs the game
 def run():
@@ -189,7 +191,7 @@ def run():
             player_pos, player_dir, player_updated, player_speed, player_stuck
         )
 
-        (player_dir, player_pos, player_updated) = handle_opposite_direction(player_target_dir, player_dir, player_pos, player_updated, player_speed)
+        (board, player_dir, player_pos, player_updated) = handle_opposite_direction(board, player_target_dir, player_dir, player_pos, player_updated, player_speed)
 
         # Handle player on new tile
         if player_tile_update:
