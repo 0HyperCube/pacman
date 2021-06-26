@@ -165,6 +165,7 @@ def run():
     player_stuck = False
     player_speed = 200
     player_updated = time.time()
+    frame = 0
 
     while True:
         for event in pygame.event.get():
@@ -207,12 +208,17 @@ def run():
         pos = get_board_pos(
             player_pos, player_dir, player_updated, player_speed, player_stuck
         )
-        render_sprite(pos, displaysurface, player_dir, pacman1_img)
+        if (frame//9)%2 ==0:
+            s = pacman1_img
+        else:
+            s = pacman2_img
+        render_sprite(pos, displaysurface, player_dir, s)
 
 
 
         pygame.display.update()
         FramePerSec.tick(60)
+        frame+=1
 
 
 run()
