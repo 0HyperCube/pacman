@@ -6,7 +6,6 @@ import math
 from dataclasses import dataclass
 from typing import Tuple, List
 
-
 @dataclass
 class Vec2:
     x: int = 0
@@ -21,25 +20,8 @@ class Sprite:
     speed: float = 200
     updated: float = time.time()
 
-
-# Initiate pygame
-pygame.init()
-displaysurface: pygame.Surface = pygame.display.set_mode((600, 650))
 TILE_SIZE: int = 30
-TILES_OFFSET: Vec2 = Vec2(0, 20)
-
-
-# Load ghost images
-ghost_img: pygame.Surface = pygame.image.load("ghost.png").convert_alpha()
-
-
-# Load pacman images
-pacman1_img: pygame.Surface = pygame.image.load("pacman1.png").convert_alpha()
-pacman2_img: pygame.Surface = pygame.image.load("pacman2.png").convert_alpha()
-pacman_col: pygame.Surface = (255, 255, 0)
-pacman1_img.fill(pacman_col, None, pygame.BLEND_RGB_MIN)
-pacman2_img.fill(pacman_col, None, pygame.BLEND_RGB_MIN)
-
+TILES_OFFSET: Vec2 = Vec2(0, 50)
 
 def new_ghost_direction(board, pos, direction, target_pos):
     # Returns new direction
@@ -175,31 +157,33 @@ def handle_opposite_direction(board, player_target_dir, player: Sprite):
         player.updated -= 1 / tiles_per_sec - delta
 
 
-# Runs the game
-def run():
-    board = grid()
-    FramePerSec = pygame.time.Clock()
-    pygame.display.set_caption("Pacman")
+def handle_events(player_target_dir):
+    for event in pygame.event.get():
+        # Close button exits
+        if event.type == QUIT:
+            pygame.quit()
+            return False
+        elif event.type == KEYDOWN:
+            if event.key == K_ESCAPE:  # Escape key to exit
+                pygame.quit()
+                return False
+            else:
+                # Handle arrow keys
+                player_target_dir = (
+                    handle_direction_input(event) or player_target_dir
+                )
+    return player_target_dir
 
+def run_level(lvl: int, font: pygame.font.Font, pacman1_img: pygame.Surface, pacman2_img: pygame.Surface, ghost_img: pygame.Surface,displaysurface: pygame.Surface, timer):
     player: Sprite = Sprite()
     player_target_dir = Vec2(1, 0)
     frame = 0
-
-    while True:
-        for event in pygame.event.get():
-            # Close button exits
-            if event.type == QUIT:
-                pygame.quit()
-                return
-            elif event.type == KEYDOWN:
-                if event.key == K_ESCAPE:  # Escape key to exit
-                    pygame.quit()
-                    return
-                else:
-                    # Handle arrow keys
-                    player_target_dir = (
-                        handle_direction_input(event) or player_target_dir
-                    )
+    score = 0
+    board = grid()
+    while score<1000:
+        player_target_dir = handle_events(player_target_dir);
+        if not player_target_dir:
+            return False
 
         # Clear screen
         displaysurface.fill((0, 0, 0))
@@ -216,6 +200,7 @@ def run():
         if player_tile_update:
             if board_at(board, player.position) == 2:
                 board[player.position.y][player.position.x] = 0
+                score += 10
             if board_at(board, add_dir(player.position, player_target_dir)) != 1:
                 player.direction = player_target_dir
                 player.stopped = False
@@ -229,10 +214,50 @@ def run():
             s = pacman2_img
         render_sprite(displaysurface, s, player)
 
+
+        displaysurface.blit(font.render(f"Level: {str(lvl)}", False, (255,255, 255)), (10,10))
+        displaysurface.blit(font.render(f"Score: {str(score)}", False, (255,255, 255)), (470,10))
+
         pygame.display.update()
-        FramePerSec.tick(60)
+        timer.tick(60)
         frame += 1
+    return True
+
+# Runs the game
+def run():
+    
+    pygame.display.set_caption("Pacman")
+    FramePerSec = pygame.time.Clock()
+    
+    # Initiate pygame
+    pygame.init()
+    displaysurface: pygame.Surface = pygame.display.set_mode((600, 650))
+
+    # Initiate font
+    pygame.font.init()
+    myfont = pygame.font.SysFont('Font.ttf', 30)
+
+    # Load ghost images
+    ghost_img: pygame.Surface = pygame.image.load("ghost.png").convert_alpha()
+
+
+    # Load pacman images
+    pacman1_img: pygame.Surface = pygame.image.load("pacman1.png").convert_alpha()
+    pacman2_img: pygame.Surface = pygame.image.load("pacman2.png").convert_alpha()
+    pacman_col: pygame.Surface = (255, 255, 0)
+    pacman1_img.fill(pacman_col, None, pygame.BLEND_RGB_MIN)
+    pacman2_img.fill(pacman_col, None, pygame.BLEND_RGB_MIN)
+
+    level = 1
+    while True:
+        result = run_level(level,myfont, pacman1_img, pacman2_img, ghost_img, displaysurface, FramePerSec);
+        if not result:
+            return
+        level+=1
+
+    
 
 
 run()
 pygame.quit()
+
