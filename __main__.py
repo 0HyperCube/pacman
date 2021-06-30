@@ -1,3 +1,4 @@
+from xmlrpc.client import Boolean
 import pygame
 from pygame.locals import *
 import time
@@ -79,11 +80,14 @@ def render_board(board: List[List[int]], displaysurface: pygame.Surface):
                 pygame.draw.circle(displaysurface, (255, 255, 255), pos, 3, 0)
 
 
-def render_sprite(displaysurface: pygame.Surface, img: pygame.Surface, sprite: Sprite):
-    angles = {(1, 0): 0, (0, 1): -90, (0, -1): 90, (-1, 0): 180}
-    rotated_sprite = pygame.transform.rotate(
-        img, angles[(sprite.direction.x, sprite.direction.y)]
-    )
+def render_sprite(displaysurface: pygame.Surface, img: pygame.Surface, sprite: Sprite, flip: Boolean):
+    if flip:
+        rotated_sprite = pygame.transform.flip(img, sprite.direction.x == -1,0)
+    else:
+        angles = {(1, 0): 0, (0, 1): -90, (0, -1): 90, (-1, 0): 180}
+        rotated_sprite = pygame.transform.rotate(
+            img, angles[(sprite.direction.x, sprite.direction.y)]
+        )
     displaysurface.blit(rotated_sprite, get_board_pos(sprite))
 
 
@@ -176,6 +180,7 @@ def handle_events(player_target_dir):
 
 def run_level(lvl: int, font: pygame.font.Font, pacman1_img: pygame.Surface, pacman2_img: pygame.Surface, ghost_img: pygame.Surface,displaysurface: pygame.Surface, timer):
     player: Sprite = Sprite()
+    ghosts = [Sprite(position=Vec2(19,10), direction=Vec2(-1,0), speed=20)]
     player_target_dir = Vec2(1, 0)
     frame = 0
     score = 0
@@ -212,7 +217,10 @@ def run_level(lvl: int, font: pygame.font.Font, pacman1_img: pygame.Surface, pac
             s = pacman1_img
         else:
             s = pacman2_img
-        render_sprite(displaysurface, s, player)
+        render_sprite(displaysurface, s, player, False)
+
+        for s in ghosts:
+            render_sprite(displaysurface, ghost_img, s, True)
 
 
         displaysurface.blit(font.render(f"Level: {str(lvl)}", False, (255,255, 255)), (10,10))
