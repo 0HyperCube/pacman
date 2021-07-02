@@ -26,6 +26,8 @@ class Sprite:
 TILE_SIZE: int = 30
 TILES_OFFSET: Vec2 = Vec2(0, 50)
 
+BLOCK = 1
+
 
 def new_ghost_direction(board, pos, direction, target_pos):
     # Returns new direction
@@ -127,6 +129,8 @@ def is_new_tile(sprite: Sprite) -> bool:
         return True
     return False
 
+def vec_dist(a: Vec2, b:Vec2) -> Vec2:
+    return math.sqrt(abs(a.x - b.x)**2 + abs(a.y - b.y)**2)
 
 def inverse_dir(dir: Vec2):
     return Vec2(-dir.x, -dir.y)
@@ -154,7 +158,7 @@ def handle_direction_input(event):
 
 
 # Handle inverting direction.
-def handle_opposite_direction(board, player_target_dir, player: Sprite, score: int):
+def handle_opposite_direction(board, player_target_dir, player: Sprite, score: int, ghosts, dead:bool):
     if player_target_dir == inverse_dir(player.direction):
         player.position = add_dir(player.position, player.direction)
         if board_at(board, player.position) == 2:
@@ -165,7 +169,8 @@ def handle_opposite_direction(board, player_target_dir, player: Sprite, score: i
         tiles_per_sec = player.speed / TILE_SIZE
         player.updated += delta
         player.updated -= 1 / tiles_per_sec - delta
-    return score
+        dead = check_dead(player, ghosts)
+    return (dead,score)
 
 
 def handle_events(player_target_dir):
@@ -183,6 +188,37 @@ def handle_events(player_target_dir):
                 player_target_dir = handle_direction_input(event) or player_target_dir
     return player_target_dir
 
+def update_ghosts(player, ghosts, displaysurface, board, ghost_img):
+    for ghost in ghosts:
+            ghost_tile_update = is_new_tile(ghost)
+            if ghost_tile_update:
+                min_dist = 99999
+                min_dir = (0,0)
+                for new_dir in (Vec2(0,1),Vec2(0,-1),Vec2(-1,0),Vec2(1,0)):
+                    next_pos = add_dir(ghost.position, new_dir)
+                    dist = vec_dist(next_pos, add_dir(player.position, player.direction))
+                    if dist < min_dist:
+                        # Ghosts can't go backwards
+                        #if new_dir == inverse_dir(ghost.direction):
+                        #    continue
+
+                        # Ghosts can't go in walls
+                        if board_at(board, next_pos) == BLOCK:
+                            continue
+                            
+                        min_dist = dist
+                        min_dir = new_dir
+                if ghost.position == player.position or ghost.position == add_dir(player.position, player.direction):
+                    return True
+                ghost.direction = min_dir
+                    
+            render_sprite(displaysurface, ghost_img, ghost, True)
+
+def check_dead(player, ghosts):
+    for ghost in ghosts:
+        if player.position == ghost.position:
+            return True
+    return False
 
 def run_level(
     lvl: int,
@@ -194,12 +230,13 @@ def run_level(
     timer,
 ):
     player: Sprite = Sprite()
-    ghosts = [Sprite(position=Vec2(19, 10), direction=Vec2(-1, 0), speed=20)]
+    ghosts = [Sprite(position=Vec2(19, 10), direction=Vec2(-1, 0), speed=120)]
     player_target_dir = Vec2(1, 0)
     frame = 0
     score = 0
     board = grid()
-    while score < 1510:
+    dead = False
+    while score < 1510 and not dead:
         player_target_dir = handle_events(player_target_dir)
         if not player_target_dir:
             return False
@@ -213,8 +250,8 @@ def run_level(
         # Find if player is on a new tile
         player_tile_update = is_new_tile(player)
 
-        score = handle_opposite_direction(board, player_target_dir, player, score)
-
+        (dead, score) = handle_opposite_direction(board, player_target_dir, player, score, ghosts, dead)
+        
         # Handle player on new tile
         if player_tile_update:
             if board_at(board, player.position) == 2:
@@ -227,14 +264,15 @@ def run_level(
                 player.stopped = False
             else:
                 player.stopped = True
+            dead = check_dead(player, ghosts)
         if (frame // 9) % 2 == 0:
             s = pacman1_img
         else:
             s = pacman2_img
         render_sprite(displaysurface, s, player, False)
 
-        for s in ghosts:
-            render_sprite(displaysurface, ghost_img, s, True)
+        if not dead:
+            dead = update_ghosts(player, ghosts, displaysurface, board, ghost_img)
 
         displaysurface.blit(
             font.render(f"Level: {str(lvl)}", False, (255, 255, 255)), (10, 10)
@@ -246,7 +284,7 @@ def run_level(
         pygame.display.update()
         timer.tick(60)
         frame += 1
-    return True
+    return not dead
 
 
 # Runs the game
