@@ -149,17 +149,18 @@ def handle_direction_input(event):
 
 
 # Handle inverting direction.
-def handle_opposite_direction(board, player_target_dir, player: Sprite):
+def handle_opposite_direction(board, player_target_dir, player: Sprite, score: int):
     if player_target_dir == inverse_dir(player.direction):
         player.position = add_dir(player.position, player.direction)
         if board_at(board, player.position) == 2:
             board[player.position.y][player.position.x] = 0
+            score += 10
         player.direction = player_target_dir
         delta = time.time() - player.updated
         tiles_per_sec = player.speed / TILE_SIZE
         player.updated += delta
         player.updated -= 1 / tiles_per_sec - delta
-
+    return score
 
 def handle_events(player_target_dir):
     for event in pygame.event.get():
@@ -185,7 +186,7 @@ def run_level(lvl: int, font: pygame.font.Font, pacman1_img: pygame.Surface, pac
     frame = 0
     score = 0
     board = grid()
-    while score<1000:
+    while score<1510:
         player_target_dir = handle_events(player_target_dir);
         if not player_target_dir:
             return False
@@ -199,7 +200,7 @@ def run_level(lvl: int, font: pygame.font.Font, pacman1_img: pygame.Surface, pac
         # Find if player is on a new tile
         player_tile_update = is_new_tile(player)
 
-        handle_opposite_direction(board, player_target_dir, player)
+        score = handle_opposite_direction(board, player_target_dir, player, score)
 
         # Handle player on new tile
         if player_tile_update:
