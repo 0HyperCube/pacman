@@ -7,6 +7,7 @@ import math
 from dataclasses import dataclass
 from typing import Tuple, List
 
+
 @dataclass
 class Vec2:
     x: int = 0
@@ -21,8 +22,10 @@ class Sprite:
     speed: float = 200
     updated: float = time.time()
 
+
 TILE_SIZE: int = 30
 TILES_OFFSET: Vec2 = Vec2(0, 50)
+
 
 def new_ghost_direction(board, pos, direction, target_pos):
     # Returns new direction
@@ -80,9 +83,11 @@ def render_board(board: List[List[int]], displaysurface: pygame.Surface):
                 pygame.draw.circle(displaysurface, (255, 255, 255), pos, 3, 0)
 
 
-def render_sprite(displaysurface: pygame.Surface, img: pygame.Surface, sprite: Sprite, flip: Boolean):
+def render_sprite(
+    displaysurface: pygame.Surface, img: pygame.Surface, sprite: Sprite, flip: Boolean
+):
     if flip:
-        rotated_sprite = pygame.transform.flip(img, sprite.direction.x == -1,0)
+        rotated_sprite = pygame.transform.flip(img, sprite.direction.x == -1, 0)
     else:
         angles = {(1, 0): 0, (0, 1): -90, (0, -1): 90, (-1, 0): 180}
         rotated_sprite = pygame.transform.rotate(
@@ -162,6 +167,7 @@ def handle_opposite_direction(board, player_target_dir, player: Sprite, score: i
         player.updated -= 1 / tiles_per_sec - delta
     return score
 
+
 def handle_events(player_target_dir):
     for event in pygame.event.get():
         # Close button exits
@@ -174,20 +180,27 @@ def handle_events(player_target_dir):
                 return False
             else:
                 # Handle arrow keys
-                player_target_dir = (
-                    handle_direction_input(event) or player_target_dir
-                )
+                player_target_dir = handle_direction_input(event) or player_target_dir
     return player_target_dir
 
-def run_level(lvl: int, font: pygame.font.Font, pacman1_img: pygame.Surface, pacman2_img: pygame.Surface, ghost_img: pygame.Surface,displaysurface: pygame.Surface, timer):
+
+def run_level(
+    lvl: int,
+    font: pygame.font.Font,
+    pacman1_img: pygame.Surface,
+    pacman2_img: pygame.Surface,
+    ghost_img: pygame.Surface,
+    displaysurface: pygame.Surface,
+    timer,
+):
     player: Sprite = Sprite()
-    ghosts = [Sprite(position=Vec2(19,10), direction=Vec2(-1,0), speed=20)]
+    ghosts = [Sprite(position=Vec2(19, 10), direction=Vec2(-1, 0), speed=20)]
     player_target_dir = Vec2(1, 0)
     frame = 0
     score = 0
     board = grid()
-    while score<1510:
-        player_target_dir = handle_events(player_target_dir);
+    while score < 1510:
+        player_target_dir = handle_events(player_target_dir)
         if not player_target_dir:
             return False
 
@@ -223,32 +236,35 @@ def run_level(lvl: int, font: pygame.font.Font, pacman1_img: pygame.Surface, pac
         for s in ghosts:
             render_sprite(displaysurface, ghost_img, s, True)
 
-
-        displaysurface.blit(font.render(f"Level: {str(lvl)}", False, (255,255, 255)), (10,10))
-        displaysurface.blit(font.render(f"Score: {str(score)}", False, (255,255, 255)), (470,10))
+        displaysurface.blit(
+            font.render(f"Level: {str(lvl)}", False, (255, 255, 255)), (10, 10)
+        )
+        displaysurface.blit(
+            font.render(f"Score: {str(score)}", False, (255, 255, 255)), (470, 10)
+        )
 
         pygame.display.update()
         timer.tick(60)
         frame += 1
     return True
 
+
 # Runs the game
 def run():
-    
+
     pygame.display.set_caption("Pacman")
     FramePerSec = pygame.time.Clock()
-    
+
     # Initiate pygame
     pygame.init()
     displaysurface: pygame.Surface = pygame.display.set_mode((600, 650))
 
     # Initiate font
     pygame.font.init()
-    myfont = pygame.font.SysFont('Font.ttf', 30)
+    myfont = pygame.font.SysFont("Font.ttf", 30)
 
     # Load ghost images
     ghost_img: pygame.Surface = pygame.image.load("ghost.png").convert_alpha()
-
 
     # Load pacman images
     pacman1_img: pygame.Surface = pygame.image.load("pacman1.png").convert_alpha()
@@ -259,14 +275,19 @@ def run():
 
     level = 1
     while True:
-        result = run_level(level,myfont, pacman1_img, pacman2_img, ghost_img, displaysurface, FramePerSec);
+        result = run_level(
+            level,
+            myfont,
+            pacman1_img,
+            pacman2_img,
+            ghost_img,
+            displaysurface,
+            FramePerSec,
+        )
         if not result:
             return
-        level+=1
-
-    
+        level += 1
 
 
 run()
 pygame.quit()
-
