@@ -224,12 +224,14 @@ def check_dead(player, ghosts):
 
 def run_level(
     lvl: int,
+    lives: int,
     font: pygame.font.Font,
     pacman1_img: pygame.Surface,
     pacman2_img: pygame.Surface,
     ghost_imgs: List[pygame.Surface],
     displaysurface: pygame.Surface,
     timer,
+    board = None,
 ):
     player: Sprite = Sprite()
     ghosts = [Sprite(position=Vec2(19, 10), direction=Vec2(-1, 0), speed=90+lvl*40),
@@ -237,7 +239,8 @@ def run_level(
     player_target_dir = Vec2(1, 0)
     frame = 0
     score = 0
-    board = grid()
+    if board==None:
+        board = grid()
     dead = False
     while score < 1510 and not dead:
         player_target_dir = handle_events(player_target_dir)
@@ -281,13 +284,19 @@ def run_level(
             font.render(f"Level: {str(lvl)}", False, (255, 255, 255)), (10, 10)
         )
         displaysurface.blit(
-            font.render(f"Score: {str(score)}", False, (255, 255, 255)), (470, 10)
+            font.render(f"Score: {str(score)}", False, (255, 255, 255)), (240, 10)
+        )
+        displaysurface.blit(
+            font.render(f"Lives: {str(lives)}", False, (255, 255, 255)), (510, 10)
         )
 
         pygame.display.update()
         timer.tick(60)
         frame += 1
-    return not dead
+    if not dead:
+        return None
+    else:
+        return board
 
 
 # Runs the game
@@ -320,20 +329,29 @@ def run():
     pacman1_img.fill(pacman_col, None, pygame.BLEND_RGB_MIN)
     pacman2_img.fill(pacman_col, None, pygame.BLEND_RGB_MIN)
 
-    level = 1
     while True:
-        result = run_level(
-            level,
-            myfont,
-            pacman1_img,
-            pacman2_img,
-            ghost_imgs,
-            displaysurface,
-            FramePerSec,
-        )
-        if not result:
-            return
-        level += 1
+        level = 1
+        lives = 3
+        game_over = False
+        board = None
+        while not game_over:
+            board = run_level(
+                level,
+                lives,
+                myfont,
+                pacman1_img,
+                pacman2_img,
+                ghost_imgs,
+                displaysurface,
+                FramePerSec,
+                board,
+            )
+            if board == None:
+                level += 1
+            else:
+                lives-=1
+            if lives==0:
+                game_over = True
 
 
 run()
