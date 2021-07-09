@@ -3,6 +3,7 @@ import pygame
 from pygame.locals import *
 import time
 import math
+from copy import deepcopy
 
 from dataclasses import dataclass
 from typing import Tuple, List
@@ -188,8 +189,9 @@ def handle_events(player_target_dir):
                 player_target_dir = handle_direction_input(event) or player_target_dir
     return player_target_dir
 
-def update_ghosts(player, ghosts, displaysurface, board, ghost_img):
-    for ghost in ghosts:
+def update_ghosts(player, ghosts, displaysurface, board, ghost_imgs):
+    for ghost_index in range(len(ghosts)):
+            ghost = ghosts[ghost_index]
             ghost_tile_update = is_new_tile(ghost)
             if ghost_tile_update:
                 min_dist = 99999
@@ -199,8 +201,8 @@ def update_ghosts(player, ghosts, displaysurface, board, ghost_img):
                     dist = vec_dist(next_pos, add_dir(player.position, player.direction))
                     if dist < min_dist:
                         # Ghosts can't go backwards
-                        #if new_dir == inverse_dir(ghost.direction):
-                        #    continue
+                        if new_dir == inverse_dir(ghost.direction):
+                            continue
 
                         # Ghosts can't go in walls
                         if board_at(board, next_pos) == BLOCK:
@@ -211,8 +213,8 @@ def update_ghosts(player, ghosts, displaysurface, board, ghost_img):
                 if ghost.position == player.position or ghost.position == add_dir(player.position, player.direction):
                     return True
                 ghost.direction = min_dir
-                    
-            render_sprite(displaysurface, ghost_img, ghost, True)
+
+            render_sprite(displaysurface, ghost_imgs[ghost_index], ghost, True)
 
 def check_dead(player, ghosts):
     for ghost in ghosts:
@@ -225,12 +227,13 @@ def run_level(
     font: pygame.font.Font,
     pacman1_img: pygame.Surface,
     pacman2_img: pygame.Surface,
-    ghost_img: pygame.Surface,
+    ghost_imgs: List[pygame.Surface],
     displaysurface: pygame.Surface,
     timer,
 ):
     player: Sprite = Sprite()
-    ghosts = [Sprite(position=Vec2(19, 10), direction=Vec2(-1, 0), speed=120)]
+    ghosts = [Sprite(position=Vec2(19, 10), direction=Vec2(-1, 0), speed=90+lvl*40),
+              Sprite(position=Vec2(1, 18), direction=Vec2(0, 0), speed=100+lvl*50)]
     player_target_dir = Vec2(1, 0)
     frame = 0
     score = 0
@@ -272,7 +275,7 @@ def run_level(
         render_sprite(displaysurface, s, player, False)
 
         if not dead:
-            dead = update_ghosts(player, ghosts, displaysurface, board, ghost_img)
+            dead = update_ghosts(player, ghosts, displaysurface, board, ghost_imgs)
 
         displaysurface.blit(
             font.render(f"Level: {str(lvl)}", False, (255, 255, 255)), (10, 10)
@@ -302,7 +305,13 @@ def run():
     myfont = pygame.font.SysFont("Font.ttf", 30)
 
     # Load ghost images
-    ghost_img: pygame.Surface = pygame.image.load("ghost.png").convert_alpha()
+    ghost_img: pygame.Surface = pygame.image.load("ghost.png")
+
+    ghost_imgs = []
+    for col in [(20,60,30),(50,20,10)]:
+        r = ghost_img.convert_alpha() # Also copies
+        r.fill(col, None, pygame.BLEND_RGB_MIN)
+        ghost_imgs.append(r)
 
     # Load pacman images
     pacman1_img: pygame.Surface = pygame.image.load("pacman1.png").convert_alpha()
@@ -318,7 +327,7 @@ def run():
             myfont,
             pacman1_img,
             pacman2_img,
-            ghost_img,
+            ghost_imgs,
             displaysurface,
             FramePerSec,
         )
