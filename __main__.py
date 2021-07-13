@@ -26,6 +26,7 @@ class Sprite:
 
 TILE_SIZE: int = 30
 TILES_OFFSET: Vec2 = Vec2(0, 50)
+DOTS_PER_LEVEL:int = 1510
 
 BLOCK = 1
 
@@ -247,7 +248,7 @@ def run_level(
         board = grid()
     dead = False
     started = False
-    while score < 1510 and not dead:
+    while score < DOTS_PER_LEVEL and not dead:
         player_target_dir = handle_events(player_target_dir)
         if not started and player.direction != Vec2(0,0):
             
@@ -263,7 +264,7 @@ def run_level(
             font.render(f"Level: {str(lvl)}", False, (255, 255, 255)), (10, 10)
         )
         displaysurface.blit(
-            font.render(f"Score: {str(score)}", False, (255, 255, 255)), (240, 10)
+            font.render(f"Score: {str(score + DOTS_PER_LEVEL * (lvl-1))}", False, (255, 255, 255)), (240, 10)
         )
         displaysurface.blit(
             font.render(f"Lives: {str(lives)}", False, (255, 255, 255)), (510, 10)
@@ -275,6 +276,7 @@ def run_level(
         # Find if player is on a new tile
         player_tile_update = is_new_tile(player)
         (dead, score) = handle_opposite_direction(board, player_target_dir, player, score, ghosts, dead)
+        
         # Handle player on new tile
         if player_tile_update:
             if board_at(board, player.position) == 2:
