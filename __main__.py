@@ -282,7 +282,9 @@ def run_level(
             if board_at(board, player.position) == 2:
                 board[player.position.y][player.position.x] = 0
                 score += 10
-            if player_target_dir != Vec2(0,0) and board_at(board, add_dir(player.position, player_target_dir)) != 1:
+            if player_target_dir == Vec2(0,0):
+                pass
+            elif board_at(board, add_dir(player.position, player_target_dir)) != 1:
                 player.direction = player_target_dir
                 player.stopped = False
             elif board_at(board, add_dir(player.position, player.direction)) != 1:
@@ -300,7 +302,7 @@ def run_level(
 
         pygame.display.update()
         timer.tick(60)
-        if started:
+        if not player.stopped:
             frame += 1
     if not dead:
         return None,0
