@@ -92,7 +92,7 @@ def render_sprite(
     if flip:
         rotated_sprite = pygame.transform.flip(img, sprite.direction.x == -1, 0)
     else:
-        angles = {(1, 0): 0, (0, 1): -90, (0, -1): 90, (-1, 0): 180}
+        angles = {(1, 0): 0, (0, 1): -90, (0, -1): 90, (-1, 0): 180, (0,0):0}
         rotated_sprite = pygame.transform.rotate(
             img, angles[(sprite.direction.x, sprite.direction.y)]
         )
@@ -232,23 +232,36 @@ def run_level(
     displaysurface: pygame.Surface,
     timer,
     board = None,
+    score = 0,
 ):
-    player: Sprite = Sprite()
-    ghosts = [Sprite(position=Vec2(19, 10), direction=Vec2(-1, 0), speed=90+lvl*40),
-              Sprite(position=Vec2(1, 18), direction=Vec2(0, 0), speed=100+lvl*50)]
-    player_target_dir = Vec2(1, 0)
+    player: Sprite = Sprite(position=Vec2(1, 1), direction=Vec2(0, 0), speed=200+lvl*20, stopped=True)
+    ghosts = [Sprite(position=Vec2(19, 10), direction=Vec2(-1, 0), speed=90+lvl*20),
+              Sprite(position=Vec2(1, 18), direction=Vec2(0, 0), speed=100+lvl*25)]
+    player_target_dir = Vec2(0, 0)
     frame = 0
-    score = 0
     if board==None:
         board = grid()
     dead = False
+    started = False
     while score < 1510 and not dead:
         player_target_dir = handle_events(player_target_dir)
+        
         if not player_target_dir:
-            return False
+            return False, 0
 
         # Clear screen
         displaysurface.fill((0, 0, 0))
+
+        # Display the text
+        displaysurface.blit(
+            font.render(f"Level: {str(lvl)}", False, (255, 255, 255)), (10, 10)
+        )
+        displaysurface.blit(
+            font.render(f"Score: {str(score)}", False, (255, 255, 255)), (240, 10)
+        )
+        displaysurface.blit(
+            font.render(f"Lives: {str(lives)}", False, (255, 255, 255)), (510, 10)
+        )
 
         # Blit the maze
         render_board(board, displaysurface)
@@ -271,6 +284,7 @@ def run_level(
             else:
                 player.stopped = True
             dead = check_dead(player, ghosts)
+        
         if (frame // 9) % 2 == 0:
             s = pacman1_img
         else:
@@ -280,23 +294,13 @@ def run_level(
         if not dead:
             dead = update_ghosts(player, ghosts, displaysurface, board, ghost_imgs)
 
-        displaysurface.blit(
-            font.render(f"Level: {str(lvl)}", False, (255, 255, 255)), (10, 10)
-        )
-        displaysurface.blit(
-            font.render(f"Score: {str(score)}", False, (255, 255, 255)), (240, 10)
-        )
-        displaysurface.blit(
-            font.render(f"Lives: {str(lives)}", False, (255, 255, 255)), (510, 10)
-        )
-
         pygame.display.update()
         timer.tick(60)
         frame += 1
     if not dead:
-        return None
+        return None,0
     else:
-        return board
+        return board, score
 
 
 # Runs the game
@@ -317,7 +321,7 @@ def run():
     ghost_img: pygame.Surface = pygame.image.load("ghost.png")
 
     ghost_imgs = []
-    for col in [(20,60,30),(50,20,10)]:
+    for col in [(20,160,130),(250,220,10)]:
         r = ghost_img.convert_alpha() # Also copies
         r.fill(col, None, pygame.BLEND_RGB_MIN)
         ghost_imgs.append(r)
@@ -334,8 +338,9 @@ def run():
         lives = 3
         game_over = False
         board = None
+        score = 0
         while not game_over:
-            board = run_level(
+            board, score = run_level(
                 level,
                 lives,
                 myfont,
@@ -345,9 +350,12 @@ def run():
                 displaysurface,
                 FramePerSec,
                 board,
+                score,
             )
             if board == None:
                 level += 1
+            elif board == False:
+                return
             else:
                 lives-=1
             if lives==0:
