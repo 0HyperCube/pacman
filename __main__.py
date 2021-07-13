@@ -215,7 +215,7 @@ def update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started):
                         
                     min_dist = dist
                     min_dir = new_dir
-            if ghost.position == player.position or ghost.position == add_dir(player.position, player.direction):
+            if ghost.position == player.position:
                 return True
             ghost.direction = min_dir
 
@@ -298,7 +298,8 @@ def run_level(
             s = pacman2_img
         render_sprite(displaysurface, s, player, False)
 
-        dead = update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started)
+        if not dead:
+            dead = update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started)
 
         pygame.display.update()
         timer.tick(60)
