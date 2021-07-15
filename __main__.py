@@ -190,7 +190,7 @@ def handle_events(player_target_dir):
                 player_target_dir = handle_direction_input(event) or player_target_dir
     return player_target_dir
 
-def update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started):
+def update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started, dead):
     for ghost_index in range(len(ghosts)):
         ghost = ghosts[ghost_index]
         if not started:
@@ -220,6 +220,7 @@ def update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started):
             ghost.direction = min_dir
 
         render_sprite(displaysurface, ghost_imgs[ghost_index], ghost, True)
+    return dead
 
 def check_dead(player, ghosts):
     for ghost in ghosts:
@@ -248,11 +249,15 @@ def run_level(
         board = grid()
     dead = False
     started = False
-    while score < DOTS_PER_LEVEL and not dead:
+    time_dead = False
+    while score < DOTS_PER_LEVEL and (not time_dead or (time.time()-time_dead<2)):
         player_target_dir = handle_events(player_target_dir)
         if not started and player.direction != Vec2(0,0):
-            
             started = True
+        
+        if dead and not time_dead:
+            time_dead = time.time()
+            player.stopped = True
         
         if not player_target_dir:
             return False, 0
@@ -278,7 +283,7 @@ def run_level(
         (dead, score) = handle_opposite_direction(board, player_target_dir, player, score, ghosts, dead)
         
         # Handle player on new tile
-        if player_tile_update:
+        if player_tile_update and not dead:
             if board_at(board, player.position) == 2:
                 board[player.position.y][player.position.x] = 0
                 score += 10
@@ -298,8 +303,12 @@ def run_level(
             s = pacman2_img
         render_sprite(displaysurface, s, player, False)
 
-        if not dead:
-            dead = update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started)
+        dead = update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started, dead)
+
+        if dead and lives == 1:
+            displaysurface.blit(
+                font.render(f"Game Over", False, (255, 255, 255)), (250, 270)
+            )
 
         pygame.display.update()
         timer.tick(60)
