@@ -47,7 +47,7 @@ def grid():
     █*██████*██*██████*█
     █*██████*██*██████*█
     █*██████*██*██████*█
-    █******************█
+    █********O*********█
     █*███*████████*███*█
     █*███*██    ██*███*█
     █*███*██    ██*███*█
@@ -58,12 +58,12 @@ def grid():
     █*██████*██*██████*█
     █******************█
     █*████████████████*█
-    █******************█
+    █***************O**█
     ████████████████████
     """.strip().split(
         "\n"
     )
-    return [[[" ", "█", "*"].index(c) for c in r.strip()] for r in rows]
+    return [[[" ", "█", "*", "O"].index(c) for c in r.strip()] for r in rows]
 
 
 def render_board(board: List[List[int]], displaysurface: pygame.Surface):
@@ -79,12 +79,16 @@ def render_board(board: List[List[int]], displaysurface: pygame.Surface):
                     (33, 33, 222),
                     Rect(pos, (TILE_SIZE - 1, TILE_SIZE - 1)),
                 )
-            elif board[row][col] == 2:
+            elif board[row][col] == 2 or board[row][col] == 3:
                 pos = (
                     TILE_SIZE * col + TILE_SIZE / 2 + TILES_OFFSET.x,
                     TILE_SIZE * row + TILE_SIZE / 2 + TILES_OFFSET.y,
                 )
-                pygame.draw.circle(displaysurface, (255, 255, 255), pos, 3, 0)
+                if board[row][col] == 2:
+                    radius = 3
+                else:
+                    radius = 5
+                pygame.draw.circle(displaysurface, (255, 255, 255), pos, radius, 0)
 
 
 def render_sprite(
