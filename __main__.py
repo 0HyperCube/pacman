@@ -40,12 +40,13 @@ class Sprite:
     stopped: bool = False
     speed: float = 200
     updated: float = time.time()
+    updated_evaluated: float = time.time()
 
 
 TILE_SIZE: int = 30
 TILES_OFFSET: Vec2 = Vec2(0, 50)
 DOTS_PER_LEVEL: int = 1550
-POWER_UP_TIME: float = 2
+POWER_UP_TIME: float = 8
 
 BLOCK = 1
 
@@ -61,12 +62,15 @@ def get_board_pos(sprite: Sprite) -> Tuple[int, int]:
         sprite.position.x * TILE_SIZE + TILES_OFFSET.x,
         sprite.position.y * TILE_SIZE + TILES_OFFSET.y,
     )
-    if not sprite.stopped:
-        delta = (time.time() - sprite.updated) * sprite.speed
-        board_pos = Vec2(
-            board_pos.x + sprite.direction.x * delta,
-            board_pos.y + sprite.direction.y * delta,
-        )
+    t = time.time()
+    if sprite.stopped:
+        sprite.updated = t - (sprite.updated_evaluated - sprite.updated)
+        sprite.updated_evaluated = t
+    delta = (sprite.updated_evaluated - sprite.updated) * sprite.speed
+    board_pos = Vec2(
+        board_pos.x + sprite.direction.x * delta,
+        board_pos.y + sprite.direction.y * delta,
+    )
     return (board_pos.x, board_pos.y)
 
 
@@ -153,10 +157,13 @@ def render_sprite(
 # Checks if on new tile
 # returns (result, pos, updated)
 def is_new_tile(sprite: Sprite) -> bool:
+    t = time.time()
     if sprite.stopped:
-        sprite.updated = time.time()
+        sprite.updated = t - (sprite.updated_evaluated - sprite.updated)
+        sprite.updated_evaluated = t
         return True
-    delta = time.time() - sprite.updated
+    delta = t - sprite.updated
+    sprite.updated_evaluated = t
     tiles_per_sec = sprite.speed / TILE_SIZE
     complete_tiles = math.floor(delta * tiles_per_sec)
     if complete_tiles:
@@ -263,9 +270,12 @@ def update_ghosts(
 ):
     for ghost_index in range(len(ghosts)):
         ghost: Sprite = ghosts[ghost_index]
-        if not started:
-            ghost.updated = time.time()
+        if not started or ghost.stopped:
+            t = time.time()
+            ghost.updated = t - (ghost.updated_evaluated - ghost.updated)
+            ghost.updated_evaluated = t
             render_sprite(displaysurface, ghost_imgs[ghost_index], ghost, True)
+            continue
 
         ghost_tile_update = is_new_tile(ghost)
         if ghost_tile_update:
@@ -278,7 +288,7 @@ def update_ghosts(
                 if power_time:
                     ghost.stopped = True
                 else:
-                    return True
+                    dead = True
             ghost.direction = new_dir
 
         render_sprite(displaysurface, ghost_imgs[ghost_index], ghost, True)
