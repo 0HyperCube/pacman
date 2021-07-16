@@ -28,7 +28,8 @@ class Sprite:
 
 TILE_SIZE: int = 30
 TILES_OFFSET: Vec2 = Vec2(0, 50)
-DOTS_PER_LEVEL: int = 1510
+DOTS_PER_LEVEL: int = 1550
+POWER_UP_TIME: float = 8
 
 BLOCK = 1
 
@@ -54,7 +55,7 @@ def grid():
     █*██████*██*██████*█
     █******************█
     █*████████████████*█
-    █***************O**█
+    █******************█
     ████████████████████
     """.strip().split(
         "\n"
@@ -78,8 +79,8 @@ def render_board(board: List[List[int]], displaysurface: pygame.Surface):
                 )
             elif board[row][col] == 2 or board[row][col] == 3:
                 pos = (
-                    TILE_SIZE * col + TILE_SIZE / 2 + TILES_OFFSET.x,
-                    TILE_SIZE * row + TILE_SIZE / 2 + TILES_OFFSET.y,
+                    int(TILE_SIZE * col + TILE_SIZE / 2 + TILES_OFFSET.x),
+                    int(TILE_SIZE * row + TILE_SIZE / 2 + TILES_OFFSET.y),
                 )
                 if board[row][col] == 2:
                     radius = 3
@@ -167,22 +168,40 @@ def handle_direction_input(event):
         return Vec2(1, 0)
 
 
+# Reverses a sprite's direction
+def inverse_direction(sprite: Sprite):
+    sprite.direction = inverse_dir(sprite.direction)
+    delta = time.time() - sprite.updated
+    tiles_per_sec = sprite.speed / TILE_SIZE
+    sprite.updated += delta
+    sprite.updated -= 1 / tiles_per_sec - delta
+
+
+# Handle inverting the direction of ghosts
+# This happens when you get powered up and stopp being powered up
+def invert_ghost_direction(ghosts: List[Sprite]):
+    for ghost in ghosts:
+        inverse_direction(ghost)
+    
+
 # Handle inverting direction.
 def handle_opposite_direction(
-    board, player_target_dir, player: Sprite, score: int, ghosts, dead: bool
+    board, player_target_dir, player: Sprite, score: int, ghosts, dead: bool, power_time: float
 ):
     if player_target_dir == inverse_dir(player.direction):
         player.position = add_dir(player.position, player.direction)
         if board_at(board, player.position) == 2:
             board[player.position.y][player.position.x] = 0
             score += 10
-        player.direction = player_target_dir
-        delta = time.time() - player.updated
-        tiles_per_sec = player.speed / TILE_SIZE
-        player.updated += delta
-        player.updated -= 1 / tiles_per_sec - delta
-        dead = check_dead(player, ghosts)
-    return (dead, score)
+        elif board_at(board, player.position) == 3:
+            board[player.position.y][player.position.x] = 0
+            score += 50
+            power_time = time.time()
+            invert_ghost_direction(ghosts)
+
+        inverse_direction(player)
+        (dead, ghost) = check_dead(player, ghosts)
+    return (dead, score, power_time)
 
 
 # Poll pygame events including arrow keys
@@ -193,7 +212,7 @@ def handle_events(player_target_dir):
             pygame.quit()
             return False
         elif event.type == KEYDOWN:
-            if event.key == K_ESCAPE:  # Escape key to exit
+            if event.key == K_ESCAPE: # Escape key to exit
                 pygame.quit()
                 return False
             else:
@@ -203,7 +222,7 @@ def handle_events(player_target_dir):
 
 
 # Display and update ghost positions
-def update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started, dead):
+def update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started, dead, power_time):
     for ghost_index in range(len(ghosts)):
         ghost = ghosts[ghost_index]
         if not started:
@@ -212,12 +231,16 @@ def update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started, de
 
         ghost_tile_update = is_new_tile(ghost)
         if ghost_tile_update:
-            min_dist = 99999
-            min_dir = (0, 0)
+            if power_time:
+                best_dist = 0
+            else:
+                best_dist = 9999999
+            best_dir = Vec2(0, 0)
+            
             for new_dir in (Vec2(0, 1), Vec2(0, -1), Vec2(-1, 0), Vec2(1, 0)):
                 next_pos = add_dir(ghost.position, new_dir)
                 dist = vec_dist(next_pos, add_dir(player.position, player.direction))
-                if dist < min_dist:
+                if (dist < best_dist and not power_time) or (dist>best_dist and power_time):
                     # Ghosts can't go backwards
                     if new_dir == inverse_dir(ghost.direction):
                         continue
@@ -226,22 +249,25 @@ def update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started, de
                     if board_at(board, next_pos) == BLOCK:
                         continue
 
-                    min_dist = dist
-                    min_dir = new_dir
+                    best_dist = dist
+                    best_dir = new_dir
             if ghost.position == player.position:
-                return True
-            ghost.direction = min_dir
+                if power_time:
+                    ghost.stopped = True
+                else:
+                    return True
+            ghost.direction = best_dir
 
         render_sprite(displaysurface, ghost_imgs[ghost_index], ghost, True)
     return dead
 
 
 # Check if pacman is on the same tile as a ghost
-def check_dead(player, ghosts):
+def check_dead(player, ghosts) -> Tuple[bool, Sprite]:
     for ghost in ghosts:
         if player.position == ghost.position:
-            return True
-    return False
+            return True, ghost
+    return False, None
 
 
 # Handles running a specific level
@@ -261,7 +287,7 @@ def run_level(
         position=Vec2(1, 1), direction=Vec2(0, 0), speed=200 + lvl * 20, stopped=True
     )
     ghosts = [
-        Sprite(position=Vec2(19, 10), direction=Vec2(-1, 0), speed=90 + lvl * 20),
+        Sprite(position=Vec2(18, 10), direction=Vec2(-1, 0), speed=90 + lvl * 20),
         Sprite(position=Vec2(1, 18), direction=Vec2(0, 0), speed=100 + lvl * 25),
     ]
     player_target_dir = Vec2(0, 0)
@@ -271,6 +297,7 @@ def run_level(
     dead = False
     started = False
     time_dead = False
+    power_time = False
     while score < DOTS_PER_LEVEL and (not time_dead or (time.time() - time_dead < 2)):
 
         # Poll pygame events including arrow keys
@@ -311,17 +338,28 @@ def run_level(
         # Blit the maze
         render_board(board, displaysurface)
 
+        # Handle deactivating the power up
+        if power_time and time.time()-power_time > POWER_UP_TIME:
+            power_time = False
+            invert_ghost_direction(ghosts)
+
         # Find if player is on a new tile
-        player_tile_update = is_new_tile(player)
-        (dead, score) = handle_opposite_direction(
-            board, player_target_dir, player, score, ghosts, dead
-        )
+        if not dead:
+            player_tile_update = is_new_tile(player)
+            (dead, score, power_time) = handle_opposite_direction(
+                board, player_target_dir, player, score, ghosts, dead, power_time
+            )
 
         # Handle player on new tile
-        if player_tile_update and not dead:
+        if not dead and player_tile_update:
             if board_at(board, player.position) == 2:
                 board[player.position.y][player.position.x] = 0
                 score += 10
+            elif board_at(board, player.position) == 3:
+                board[player.position.y][player.position.x] = 0
+                score += 50
+                power_time = time.time()
+                invert_ghost_direction(ghosts)
             if player_target_dir == Vec2(0, 0):
                 pass
             elif board_at(board, add_dir(player.position, player_target_dir)) != 1:
@@ -331,7 +369,10 @@ def run_level(
                 player.stopped = False
             else:
                 player.stopped = True
-            dead = check_dead(player, ghosts)
+            (dead, ghost) = check_dead(player, ghosts)
+            if power_time and dead:
+                ghost.stopped = True
+                dead = False
 
         # Update animation
         if (frame // 9) % 2 == 0:
@@ -344,13 +385,17 @@ def run_level(
 
         # Render ghosts
         dead = update_ghosts(
-            player, ghosts, displaysurface, board, ghost_imgs, started, dead
+            player, ghosts, displaysurface, board, ghost_imgs, started, dead, power_time
         )
 
         # Display game over message
         if dead and lives == 1:
             displaysurface.blit(
                 font.render(f"Game Over", False, (255, 255, 255)), (250, 270)
+            )
+        elif dead:
+            displaysurface.blit(
+                font.render(f"Death hast befolen on thee", False, (255, 255, 255)), (170, 270)
             )
 
         # Update
