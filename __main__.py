@@ -16,11 +16,27 @@ class Vec2:
     y: int = 0
 
 
+# The distance between two vectors
+def vec_dist(a: Vec2, b: Vec2) -> Vec2:
+    return math.sqrt(abs(a.x - b.x) ** 2 + abs(a.y - b.y) ** 2)
+
+
+# The inverse of a vector
+def invert_vec(dir: Vec2):
+    return Vec2(-dir.x, -dir.y)
+
+
+# Add two vectors
+def add_vec(pos: Vec2, dir: Vec2):
+    return Vec2(pos.x + dir.x, pos.y + dir.y)
+
+
 # This struct represents either pacman or a ghost
 @dataclass
 class Sprite:
     position: Vec2 = Vec2(1, 1)
     direction: Vec2 = Vec2(1, 0)
+    target_dir: Vec2 = Vec2()
     stopped: bool = False
     speed: float = 200
     updated: float = time.time()
@@ -29,13 +45,33 @@ class Sprite:
 TILE_SIZE: int = 30
 TILES_OFFSET: Vec2 = Vec2(0, 50)
 DOTS_PER_LEVEL: int = 1550
-POWER_UP_TIME: float = 8
+POWER_UP_TIME: float = 2
 
 BLOCK = 1
 
+# Get the board at a vector
+def board_at(board: List[List[int]], pos: Vec2):
+    return board[pos.y][pos.x]
+
+
+# Converts a Tile position to a board position
+# Returns the board pos
+def get_board_pos(sprite: Sprite) -> Tuple[int, int]:
+    board_pos = Vec2(
+        sprite.position.x * TILE_SIZE + TILES_OFFSET.x,
+        sprite.position.y * TILE_SIZE + TILES_OFFSET.y,
+    )
+    if not sprite.stopped:
+        delta = (time.time() - sprite.updated) * sprite.speed
+        board_pos = Vec2(
+            board_pos.x + sprite.direction.x * delta,
+            board_pos.y + sprite.direction.y * delta,
+        )
+    return (board_pos.x, board_pos.y)
+
 
 # Parses the maze from ascii art
-def grid():
+def parse_board():
     rows = """
     ████████████████████
     █ *****************█
@@ -67,25 +103,36 @@ def grid():
 def render_board(board: List[List[int]], displaysurface: pygame.Surface):
     for row in range(len(board)):
         for col in range(len(board[0])):
+            # Wall / Block
             if board[row][col] == 1:
+                # Calculate position
                 pos = (
                     TILE_SIZE * col + TILES_OFFSET.x,
                     TILE_SIZE * row + TILES_OFFSET.y,
                 )
+
+                # Blit rect
                 pygame.draw.rect(
                     displaysurface,
                     (33, 33, 222),
                     Rect(pos, (TILE_SIZE - 1, TILE_SIZE - 1)),
                 )
+
+            # Normal dot or power up dot
             elif board[row][col] == 2 or board[row][col] == 3:
+                # Calculate position
                 pos = (
                     int(TILE_SIZE * col + TILE_SIZE / 2 + TILES_OFFSET.x),
                     int(TILE_SIZE * row + TILE_SIZE / 2 + TILES_OFFSET.y),
                 )
+
+                # Get dot radius based on dot type
                 if board[row][col] == 2:
                     radius = 3
                 else:
                     radius = 5
+
+                # Blit circle
                 pygame.draw.circle(displaysurface, (255, 255, 255), pos, radius, 0)
 
 
@@ -103,22 +150,6 @@ def render_sprite(
     displaysurface.blit(rotated_sprite, get_board_pos(sprite))
 
 
-# Converts a Tile position to a board position
-# Returns the board pos
-def get_board_pos(sprite: Sprite) -> Tuple[int, int]:
-    board_pos = Vec2(
-        sprite.position.x * TILE_SIZE + TILES_OFFSET.x,
-        sprite.position.y * TILE_SIZE + TILES_OFFSET.y,
-    )
-    if not sprite.stopped:
-        delta = (time.time() - sprite.updated) * sprite.speed
-        board_pos = Vec2(
-            board_pos.x + sprite.direction.x * delta,
-            board_pos.y + sprite.direction.y * delta,
-        )
-    return (board_pos.x, board_pos.y)
-
-
 # Checks if on new tile
 # returns (result, pos, updated)
 def is_new_tile(sprite: Sprite) -> bool:
@@ -129,30 +160,10 @@ def is_new_tile(sprite: Sprite) -> bool:
     tiles_per_sec = sprite.speed / TILE_SIZE
     complete_tiles = math.floor(delta * tiles_per_sec)
     if complete_tiles:
-        sprite.position = add_dir(sprite.position, sprite.direction)
+        sprite.position = add_vec(sprite.position, sprite.direction)
         sprite.updated += complete_tiles / tiles_per_sec
         return True
     return False
-
-
-# The distance between two vectors
-def vec_dist(a: Vec2, b: Vec2) -> Vec2:
-    return math.sqrt(abs(a.x - b.x) ** 2 + abs(a.y - b.y) ** 2)
-
-
-# The inverse of a vector
-def inverse_dir(dir: Vec2):
-    return Vec2(-dir.x, -dir.y)
-
-
-# Add two vectors
-def add_dir(pos: Vec2, dir: Vec2):
-    return Vec2(pos.x + dir.x, pos.y + dir.y)
-
-
-# Get the board at a vector
-def board_at(board: List[List[int]], pos: Vec2):
-    return board[pos.y][pos.x]
 
 
 # Handle input from the arrow keys
@@ -169,8 +180,8 @@ def handle_direction_input(event):
 
 
 # Reverses a sprite's direction
-def inverse_direction(sprite: Sprite):
-    sprite.direction = inverse_dir(sprite.direction)
+def invert_direction(sprite: Sprite):
+    sprite.direction = invert_vec(sprite.direction)
     delta = time.time() - sprite.updated
     tiles_per_sec = sprite.speed / TILE_SIZE
     sprite.updated += delta
@@ -181,15 +192,15 @@ def inverse_direction(sprite: Sprite):
 # This happens when you get powered up and stopp being powered up
 def invert_ghost_direction(ghosts: List[Sprite]):
     for ghost in ghosts:
-        inverse_direction(ghost)
-    
+        ghost.target_dir = invert_vec(ghost.direction)
+
 
 # Handle inverting direction.
 def handle_opposite_direction(
-    board, player_target_dir, player: Sprite, score: int, ghosts, dead: bool, power_time: float
+    board, player: Sprite, score: int, ghosts, dead: bool, power_time: float
 ):
-    if player_target_dir == inverse_dir(player.direction):
-        player.position = add_dir(player.position, player.direction)
+    if player.target_dir == invert_vec(player.direction):
+        player.position = add_vec(player.position, player.direction)
         if board_at(board, player.position) == 2:
             board[player.position.y][player.position.x] = 0
             score += 10
@@ -199,64 +210,76 @@ def handle_opposite_direction(
             power_time = time.time()
             invert_ghost_direction(ghosts)
 
-        inverse_direction(player)
+        invert_direction(player)
         (dead, ghost) = check_dead(player, ghosts)
     return (dead, score, power_time)
 
 
 # Poll pygame events including arrow keys
-def handle_events(player_target_dir):
+# Returns true if quit
+def handle_events(player):
     for event in pygame.event.get():
         # Close button exits
         if event.type == QUIT:
             pygame.quit()
-            return False
+            return True
         elif event.type == KEYDOWN:
-            if event.key == K_ESCAPE: # Escape key to exit
+            if event.key == K_ESCAPE:  # Escape key to exit
                 pygame.quit()
-                return False
+                return True
             else:
                 # Handle arrow keys
-                player_target_dir = handle_direction_input(event) or player_target_dir
-    return player_target_dir
+                player.target_dir = handle_direction_input(event) or player.target_dir
+    return False
+
+
+def best_ghost_direction(player, ghost, board, power_time):
+    if power_time:
+        best_dist = 0
+    else:
+        best_dist = 9999999
+    best_dir = Vec2(0, 0)
+
+    for new_dir in (Vec2(0, 1), Vec2(0, -1), Vec2(-1, 0), Vec2(1, 0)):
+        next_pos = add_vec(ghost.position, new_dir)
+        dist = vec_dist(next_pos, add_vec(player.position, player.direction))
+        if (dist < best_dist and not power_time) or (dist > best_dist and power_time):
+            # Ghosts can't go backwards
+            if new_dir == invert_vec(ghost.direction):
+                continue
+
+            # Ghosts can't go in walls
+            if board_at(board, next_pos) == BLOCK:
+                continue
+
+            best_dist = dist
+            best_dir = new_dir
+    return best_dir
 
 
 # Display and update ghost positions
-def update_ghosts(player, ghosts, displaysurface, board, ghost_imgs, started, dead, power_time):
+def update_ghosts(
+    player, ghosts, displaysurface, board, ghost_imgs, started, dead, power_time
+):
     for ghost_index in range(len(ghosts)):
-        ghost = ghosts[ghost_index]
+        ghost: Sprite = ghosts[ghost_index]
         if not started:
             ghost.updated = time.time()
             render_sprite(displaysurface, ghost_imgs[ghost_index], ghost, True)
 
         ghost_tile_update = is_new_tile(ghost)
         if ghost_tile_update:
-            if power_time:
-                best_dist = 0
+            if ghost.target_dir != Vec2():
+                new_dir = ghost.target_dir
+                ghost.target_dir = Vec2()
             else:
-                best_dist = 9999999
-            best_dir = Vec2(0, 0)
-            
-            for new_dir in (Vec2(0, 1), Vec2(0, -1), Vec2(-1, 0), Vec2(1, 0)):
-                next_pos = add_dir(ghost.position, new_dir)
-                dist = vec_dist(next_pos, add_dir(player.position, player.direction))
-                if (dist < best_dist and not power_time) or (dist>best_dist and power_time):
-                    # Ghosts can't go backwards
-                    if new_dir == inverse_dir(ghost.direction):
-                        continue
-
-                    # Ghosts can't go in walls
-                    if board_at(board, next_pos) == BLOCK:
-                        continue
-
-                    best_dist = dist
-                    best_dir = new_dir
+                new_dir = best_ghost_direction(player, ghost, board, power_time)
             if ghost.position == player.position:
                 if power_time:
                     ghost.stopped = True
                 else:
                     return True
-            ghost.direction = best_dir
+            ghost.direction = new_dir
 
         render_sprite(displaysurface, ghost_imgs[ghost_index], ghost, True)
     return dead
@@ -290,31 +313,29 @@ def run_level(
         Sprite(position=Vec2(18, 10), direction=Vec2(-1, 0), speed=90 + lvl * 20),
         Sprite(position=Vec2(1, 18), direction=Vec2(0, 0), speed=100 + lvl * 25),
     ]
-    player_target_dir = Vec2(0, 0)
+    player.target_dir = Vec2(0, 0)
     frame = 0
     if board == None:
-        board = grid()
+        board = parse_board()
     dead = False
     started = False
     time_dead = False
     power_time = False
     while score < DOTS_PER_LEVEL and (not time_dead or (time.time() - time_dead < 2)):
 
-        # Poll pygame events including arrow keys
-        player_target_dir = handle_events(player_target_dir)
+        # Poll pygame events
+        if handle_events(player):
+            # Application quit
+            return False, 0
 
-        # Check if player has started moving to start the ghosts
+        # Start the ghosts moving
         if not started and player.direction != Vec2(0, 0):
             started = True
 
-        # On death
+        # Handle death
         if dead and not time_dead:
             time_dead = time.time()
             player.stopped = True
-
-        # Application quit
-        if not player_target_dir:
-            return False, 0
 
         # Clear screen
         displaysurface.fill((0, 0, 0))
@@ -339,7 +360,7 @@ def run_level(
         render_board(board, displaysurface)
 
         # Handle deactivating the power up
-        if power_time and time.time()-power_time > POWER_UP_TIME:
+        if power_time and time.time() - power_time > POWER_UP_TIME:
             power_time = False
             invert_ghost_direction(ghosts)
 
@@ -347,7 +368,7 @@ def run_level(
         if not dead:
             player_tile_update = is_new_tile(player)
             (dead, score, power_time) = handle_opposite_direction(
-                board, player_target_dir, player, score, ghosts, dead, power_time
+                board, player, score, ghosts, dead, power_time
             )
 
         # Handle player on new tile
@@ -360,12 +381,12 @@ def run_level(
                 score += 50
                 power_time = time.time()
                 invert_ghost_direction(ghosts)
-            if player_target_dir == Vec2(0, 0):
+            if player.target_dir == Vec2(0, 0):
                 pass
-            elif board_at(board, add_dir(player.position, player_target_dir)) != 1:
-                player.direction = player_target_dir
+            elif board_at(board, add_vec(player.position, player.target_dir)) != 1:
+                player.direction = player.target_dir
                 player.stopped = False
-            elif board_at(board, add_dir(player.position, player.direction)) != 1:
+            elif board_at(board, add_vec(player.position, player.direction)) != 1:
                 player.stopped = False
             else:
                 player.stopped = True
@@ -395,7 +416,8 @@ def run_level(
             )
         elif dead:
             displaysurface.blit(
-                font.render(f"Death hast befolen on thee", False, (255, 255, 255)), (170, 270)
+                font.render(f"Death hast befolen on thee", False, (255, 255, 255)),
+                (170, 270),
             )
 
         # Update
