@@ -2,7 +2,6 @@ import pygame
 from pygame.locals import *
 import time
 import math
-from copy import deepcopy
 
 from dataclasses import dataclass
 from typing import Tuple, List
