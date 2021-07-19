@@ -43,12 +43,53 @@ class Sprite:
     updated_evaluated: float = time.time()
 
 
-TILE_SIZE: int = 30
+# Constants
+
+TILE_SIZE: int = 24
 TILES_OFFSET: Vec2 = Vec2(0, 50)
-DOTS_PER_LEVEL: int = 1550
-POWER_UP_TIME: float = 8
+POWER_UP_TIME: float = 2
 
 BLOCK = 1
+
+BOARD: str = """
+    █████████████████████████
+    █***********************█
+    █*████*█████*█████*████*█
+    █*████*█████*█████*████*█
+    █*████*█████*█████*████*█
+    █*████*█████*█████*████*█
+    █***********************█
+    █*████*██*█████*██*████*█
+    █*████*██*█████*██*████*█
+    █*████*██*█████*██*████*█
+    █***********************█
+    ██████*█*███████*█*██████
+    ██████*█*█     █*█*██████
+    ██████*█*█     █*█*██████
+    ██████*█*█     █*█*██████
+    █******█*███████*█******█
+    █*████*█*********█*████*█
+    █O████*███*███*███*████O█
+    █*████*███*███*███*████*█
+    █**********███**********█
+    █*████████*███*████████*█
+    █*████████*███*████████*█
+    █*████████*███*████████*█
+    █***********************█
+    █████████████████████████
+    """
+
+# Parses the maze from ascii art
+def parse_board(board):
+    rows = board.strip().split("\n")
+    return [[[" ", "█", "*", "O"].index(c) for c in r.strip()] for r in rows]
+
+
+def count_points(board):
+    return board.count("*") * 10 + board.count("O") * 50
+
+
+DOTS_PER_LEVEL: int = count_points(BOARD)
 
 # Get the board at a vector
 def board_at(board: List[List[int]], pos: Vec2):
@@ -72,35 +113,6 @@ def get_board_pos(sprite: Sprite) -> Tuple[int, int]:
         board_pos.y + sprite.direction.y * delta,
     )
     return (board_pos.x, board_pos.y)
-
-
-# Parses the maze from ascii art
-def parse_board():
-    rows = """
-    ████████████████████
-    █ *****************█
-    █*████████████████*█
-    █******************█
-    █*██████*██*██████*█
-    █*██████*██*██████*█
-    █*██████*██*██████*█
-    █********O*********█
-    █*███*████████*███*█
-    █*███*██    ██*███*█
-    █*███*██    ██*███*█
-    █*███*████████*███*█
-    █******************█
-    █*██████*██*██████*█
-    █*██████*██*██████*█
-    █*██████*██*██████*█
-    █******************█
-    █*████████████████*█
-    █******************█
-    ████████████████████
-    """.strip().split(
-        "\n"
-    )
-    return [[[" ", "█", "*", "O"].index(c) for c in r.strip()] for r in rows]
 
 
 # Blits the board from the nested list every frame
@@ -326,7 +338,7 @@ def run_level(
     player.target_dir = Vec2(0, 0)
     frame = 0
     if board == None:
-        board = parse_board()
+        board = parse_board(BOARD)
     dead = False
     started = False
     time_dead = False
