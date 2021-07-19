@@ -1,4 +1,3 @@
-from xmlrpc.client import Boolean
 import pygame
 from pygame.locals import *
 import time
@@ -154,7 +153,7 @@ def render_board(board: List[List[int]], displaysurface: pygame.Surface):
 
 # Renders either pacman or a ghost. Handles converting to pixel coordinates
 def render_sprite(
-    displaysurface: pygame.Surface, img: pygame.Surface, sprite: Sprite, flip: Boolean
+    displaysurface: pygame.Surface, img: pygame.Surface, sprite: Sprite, flip: bool
 ):
     if flip:
         rotated_sprite = pygame.transform.flip(img, sprite.direction.x == -1, 0)
